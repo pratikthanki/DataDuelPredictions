@@ -12,9 +12,9 @@ namespace DataDuelPredictions
         public float IsHome;
     }
 
-    public class ScorePrediction
+    public class FullTimeScore
     {
         [ColumnName("Score")] 
-        public float FullTimeGoals;
+        public float Goals;
     }
 }
