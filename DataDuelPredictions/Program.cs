@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Trainers;
@@ -34,7 +32,7 @@ namespace DataDuelPredictions
             // Train trainedModel on training data 
             var trainedModel = trainingPipeline.Fit(trainData);
 
-            var metrics = Evaluate(mlContext, trainedModel, testData);
+            Evaluate(mlContext, trainedModel, testData);
 
             // TestSinglePrediction(mlContext, trainedModel);
         }
@@ -47,14 +45,11 @@ namespace DataDuelPredictions
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding("TeamEncoded", nameof(Match.Team)))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding("OpponentEncoded", nameof(Match.Opponent)))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding("IsHomeEncoded", nameof(Match.IsHome)))
-                .Append(mlContext.Transforms.Categorical.OneHotEncoding("FullTimeGoalsEncoded",
-                    nameof(Match.FullTimeGoals)))
-                .Append(mlContext.Transforms.Concatenate("Features",
-                    "FullTimeGoalsEncoded", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
+                .Append(mlContext.Transforms.Concatenate("Features", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
                 .Append(mlContext.Regression.Trainers.LbfgsPoissonRegression());
         }
 
-        private static RegressionMetrics Evaluate(MLContext mlContext, ITransformer trainedModel, IDataView testData)
+        private static void Evaluate(MLContext mlContext, ITransformer trainedModel, IDataView testData)
         {
             var predictions = trainedModel.Transform(testData);
             var metrics =
@@ -67,7 +62,6 @@ namespace DataDuelPredictions
             Console.WriteLine($"Mean Squared Error       : {metrics.MeanSquaredError}");
             Console.WriteLine($"Root Mean Squared Error  : {metrics.RootMeanSquaredError}");
 
-            return metrics;
         }
 
         private static void TestSinglePrediction(MLContext mlContext, ITransformer model)
@@ -75,7 +69,7 @@ namespace DataDuelPredictions
             var predictionFunction =
                 mlContext.Model.CreatePredictionEngine<Match, ScorePrediction>(model);
 
-            var matchSample = new Match()
+            var matchSample = new Match
             {
                 MatchDate = DateTime.ParseExact("08/03/2020", "dd/MM/yyyy", null),
                 Team = "Man United",
@@ -101,56 +95,6 @@ namespace DataDuelPredictions
             var fullPath = Path.Combine(assemblyFolderPath, relativePath);
 
             return fullPath;
-        }
-    }
-
-    public static class CsvReader
-    {
-        public static IEnumerable<Match> GetData(string filePath)
-        {
-            var results =
-                File.ReadAllLines(filePath)
-                    .Skip(1)
-                    .Select(x => x.Split(","))
-                    .Select(x => new CsvSchema
-                    {
-                        MatchDate = DateTime.ParseExact(x[0], "dd/MM/yyyy", null),
-                        HomeTeam = x[1],
-                        AwayTeam = x[2],
-                        FullTimeHomeTeamGoals = int.Parse(x[3]),
-                        FullTimeAwayTeamGoals = int.Parse(x[4])
-                    });
-
-            return TransformResults(results);
-        }
-
-        private static IEnumerable<Match> TransformResults(IEnumerable<CsvSchema> results)
-        {
-            var matchResults = results.ToList();
-            var transformed = matchResults
-                .Select(x => new[]
-                    {
-                        new Match
-                        {
-                            MatchDate = x.MatchDate,
-                            Team = x.HomeTeam,
-                            Opponent = x.AwayTeam,
-                            FullTimeGoals = (float) x.FullTimeHomeTeamGoals,
-                            IsHome = (float) 1
-                        },
-                        new Match
-                        {
-                            MatchDate = x.MatchDate,
-                            Team = x.AwayTeam,
-                            Opponent = x.HomeTeam,
-                            FullTimeGoals = (float) x.FullTimeAwayTeamGoals,
-                            IsHome = (float) 0
-                        }
-                    }
-                ).SelectMany(o => o)
-                .ToList();
-
-            return transformed.ToList();
         }
     }
 }
