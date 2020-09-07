@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Trainers;
 
 namespace DataDuelPredictions
 {
@@ -17,24 +19,30 @@ namespace DataDuelPredictions
         {
             var mlContext = new MLContext(0);
 
+            // Load data from CSV and parse into mlContext data object
             var transformedCsv = CsvReader.GetData(DataPath);
             var dataView = mlContext.Data.LoadFromEnumerable(transformedCsv);
 
+            // Split into train-test
             var dataSplit = mlContext.Data.TrainTestSplit(dataView, 0.2);
             var trainData = dataSplit.TrainSet;
             var testData = dataSplit.TestSet;
 
-            var model = Train(mlContext, trainData);
+            // Transform 
+            var trainingPipeline = BuildTrainingPipeline(mlContext);
 
-            Evaluate(mlContext, model, testData);
+            // Train trainedModel on training data 
+            var trainedModel = trainingPipeline.Fit(trainData);
 
-            TestSinglePrediction(mlContext, model);
+            var metrics = Evaluate(mlContext, trainedModel, testData);
+
+            // TestSinglePrediction(mlContext, trainedModel);
         }
 
-        private static ITransformer Train(MLContext mlContext, IDataView trainData)
+        private static EstimatorChain<RegressionPredictionTransformer<PoissonRegressionModelParameters>> BuildTrainingPipeline(MLContext mlContext)
         {
             // Data process configuration with pipeline data transformations
-            var pipeline = mlContext.Transforms
+            return mlContext.Transforms
                 .CopyColumns("Label", nameof(Match.FullTimeGoals))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding("TeamEncoded", nameof(Match.Team)))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding("OpponentEncoded", nameof(Match.Opponent)))
@@ -44,26 +52,22 @@ namespace DataDuelPredictions
                 .Append(mlContext.Transforms.Concatenate("Features",
                     "FullTimeGoalsEncoded", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
                 .Append(mlContext.Regression.Trainers.LbfgsPoissonRegression());
-
-            // Train the model and fit to the training data
-            var trainedModel = pipeline.Fit(trainData);
-
-            return trainedModel;
         }
 
-        private static void Evaluate(MLContext mlContext, ITransformer model, IDataView testData)
+        private static RegressionMetrics Evaluate(MLContext mlContext, ITransformer trainedModel, IDataView testData)
         {
-            var predictions = model.Transform(testData);
+            var predictions = trainedModel.Transform(testData);
             var metrics =
                 mlContext.Regression.Evaluate(predictions, labelColumnName: "Label", scoreColumnName: "Score");
 
-            Console.WriteLine();
-            Console.WriteLine($"*************************************************");
-            Console.WriteLine($"*       Model quality metrics evaluation         ");
-            Console.WriteLine($"*------------------------------------------------");
+            Console.WriteLine($"**Model metrics**");
+            Console.WriteLine($"Loss Function            : {metrics.LossFunction}");
+            Console.WriteLine($"R Squared                : {metrics.RSquared}");
+            Console.WriteLine($"Mean Absolute Error      : {metrics.MeanAbsoluteError}");
+            Console.WriteLine($"Mean Squared Error       : {metrics.MeanSquaredError}");
+            Console.WriteLine($"Root Mean Squared Error  : {metrics.RootMeanSquaredError}");
 
-            Console.WriteLine($"*       RSquared Score:      {metrics.RSquared:##.###}");
-            Console.WriteLine($"*       Root Mean Squared Error:      {metrics.RootMeanSquaredError:##.###}");
+            return metrics;
         }
 
         private static void TestSinglePrediction(MLContext mlContext, ITransformer model)
