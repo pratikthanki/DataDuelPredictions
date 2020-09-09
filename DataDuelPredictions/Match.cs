@@ -14,7 +14,6 @@ namespace DataDuelPredictions
 
     public class FullTimeScore
     {
-        [ColumnName("Score")] 
-        public float Goals;
+        [ColumnName("Score")] public float FullTimeGoals;
     }
 }

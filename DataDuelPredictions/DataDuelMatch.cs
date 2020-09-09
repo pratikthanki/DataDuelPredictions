@@ -44,7 +44,7 @@ namespace DataDuelPredictions
 
     public class Score
     {
-        public object homeGoals { get; set; }
-        public object awayGoals { get; set; }
+        public int? homeGoals { get; set; }
+        public int? awayGoals { get; set; }
     }
 }
