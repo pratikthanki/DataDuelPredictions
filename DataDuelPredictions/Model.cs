@@ -2,8 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Trainers;
 
 namespace DataDuelPredictions
 {
@@ -30,28 +28,30 @@ namespace DataDuelPredictions
             var trainData = dataSplit.TrainSet;
             var testData = dataSplit.TestSet;
 
-            // Transform 
-            var trainingPipeline = BuildTrainingPipeline(mlContext);
-
-            // Train trainedModel on training data 
-            var trainedModel = trainingPipeline.Fit(trainData);
+            // Transform and train
+            var trainedModel = Train(mlContext, trainData);
 
             Evaluate(mlContext, trainedModel, testData);
-
-            // TestSinglePrediction(mlContext, trainedModel);
         }
 
-        private static EstimatorChain<RegressionPredictionTransformer<PoissonRegressionModelParameters>>
-            BuildTrainingPipeline(MLContext mlContext)
+        private static ITransformer Train(MLContext mlContext, IDataView trainData)
         {
             // Data process configuration with pipeline data transformations
-            return mlContext.Transforms
+            var trainingPipeline = mlContext.Transforms
                 .CopyColumns("Label", nameof(Match.FullTimeGoals))
-                .Append(mlContext.Transforms.Categorical.OneHotEncoding("TeamEncoded", nameof(Match.Team)))
-                .Append(mlContext.Transforms.Categorical.OneHotEncoding("OpponentEncoded", nameof(Match.Opponent)))
-                .Append(mlContext.Transforms.Categorical.OneHotEncoding("IsHomeEncoded", nameof(Match.IsHome)))
-                .Append(mlContext.Transforms.Concatenate("Features", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
+                .Append(mlContext.Transforms.Categorical.OneHotEncoding(
+                    "TeamEncoded", nameof(Match.Team)))
+                .Append(mlContext.Transforms.Categorical.OneHotEncoding(
+                    "OpponentEncoded", nameof(Match.Opponent)))
+                .Append(mlContext.Transforms.Categorical.OneHotEncoding(
+                    "IsHomeEncoded", nameof(Match.IsHome)))
+                .Append(mlContext.Transforms.Concatenate(
+                    "Features", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
                 .Append(mlContext.Regression.Trainers.LbfgsPoissonRegression());
+
+            var model = trainingPipeline.Fit(trainData);
+
+            return model;
         }
 
         private static void Evaluate(MLContext mlContext, ITransformer trainedModel, IDataView testData)
@@ -69,21 +69,14 @@ namespace DataDuelPredictions
 
         }
 
-        private static void MakePrediction(MLContext mlContext, ITransformer model)
+        private static float MakePrediction(MLContext mlContext, ITransformer model, Match match)
         {
             var predictionFunction =
                 mlContext.Model.CreatePredictionEngine<Match, FullTimeScore>(model);
 
-            var matchSample = new Match
-            {
-                MatchDate = DateTime.ParseExact("08/03/2020", "dd/MM/yyyy", null),
-                Team = "Man United",
-                Opponent = "Man City",
-                FullTimeGoals = 2,
-                IsHome = 1
-            };
+            var prediction = predictionFunction.Predict(match);
 
-            var prediction = predictionFunction.Predict(matchSample);
+            return prediction.FullTimeGoals;
         }
 
         private static string GetAbsolutePath(string relativePath)
