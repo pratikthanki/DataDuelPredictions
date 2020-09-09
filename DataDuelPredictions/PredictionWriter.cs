@@ -15,15 +15,15 @@ namespace DataDuelPredictions
         private const string ApplicationJson = "application/json";
 
         private const int Season = 2020;
-        private readonly string MatchDayEndpoint = $"/api/season/{Season}/matchday/1/fixture";
-        private readonly string FixturesEndpoint = $"/api/season/{Season}/fixture";
+        private static readonly string MatchDayEndpoint = $"/api/season/{Season}/matchday/1/fixture";
+        private static readonly string FixturesEndpoint = $"/api/season/{Season}/fixture";
         private const string PredictionEndpoint = @"/api/prediction";
 
         public PredictionWriter()
         {
         }
 
-        public async Task<DataDuelMatch> GetFixtures()
+        public static async Task<IList<DataDuelMatch>> GetFixtures()
         {
             var request = WebRequest.Create($"{BaseUrl}{FixturesEndpoint}");
 
@@ -32,12 +32,12 @@ namespace DataDuelPredictions
             using var reader = new StreamReader(dataStream!);
 
             var content = await reader.ReadToEndAsync();
-            var responseJson = JsonConvert.DeserializeObject<DataDuelMatch>(content);
+            var responseJson = JsonConvert.DeserializeObject<List<DataDuelMatch>>(content);
 
             return responseJson;
         }
 
-        public async Task PutPredictions(List<ScorePrediction> predictions)
+        public static async Task<HttpStatusCode> PutPredictions(List<ScorePrediction> predictions)
         {
             var request = WebRequest.Create($"{BaseUrl}{PredictionEndpoint}");
 
@@ -52,7 +52,7 @@ namespace DataDuelPredictions
             ser.WriteObject(dataStream, predictions);
 
             var response = (HttpWebResponse) await request.GetResponseAsync();
-            var returnString = response.StatusCode.ToString();
+            return response.StatusCode;
         }
     }
 }
