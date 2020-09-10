@@ -5,20 +5,20 @@ using Microsoft.ML;
 
 namespace DataDuelPredictions
 {
-    class Model
+    class ModelBuilder
     {
+        private static MLContext mlContext;
         private static readonly string RelativePath = @"../../../../DataDuelPredictions";
         private static readonly string DataRelativePath = $"{RelativePath}/results.csv";
         private static readonly string DataPath = GetAbsolutePath(DataRelativePath);
 
-        public Model()
+        public ModelBuilder()
         {
+            mlContext = new MLContext();
         }
 
-        public void BuildModel()
+        public ITransformer BuildModel()
         {
-            var mlContext = new MLContext(0);
-
             // Load data from CSV and parse into mlContext data object
             var transformedCsv = CsvReader.GetData(DataPath);
             var dataView = mlContext.Data.LoadFromEnumerable(transformedCsv);
@@ -29,12 +29,14 @@ namespace DataDuelPredictions
             var testData = dataSplit.TestSet;
 
             // Transform and train
-            var trainedModel = Train(mlContext, trainData);
+            var trainedModel = Train(trainData);
 
-            Evaluate(mlContext, trainedModel, testData);
+            Evaluate(trainedModel, testData);
+
+            return trainedModel;
         }
 
-        private static ITransformer Train(MLContext mlContext, IDataView trainData)
+        private ITransformer Train(IDataView trainData)
         {
             // Data process configuration with pipeline data transformations
             var trainingPipeline = mlContext.Transforms
@@ -54,13 +56,13 @@ namespace DataDuelPredictions
             return model;
         }
 
-        private static void Evaluate(MLContext mlContext, ITransformer trainedModel, IDataView testData)
+        private void Evaluate(ITransformer trainedModel, IDataView testData)
         {
             var predictions = trainedModel.Transform(testData);
             var metrics =
                 mlContext.Regression.Evaluate(predictions, labelColumnName: "Label", scoreColumnName: "Score");
 
-            Console.WriteLine($"**Model metrics**");
+            Console.WriteLine($"**ModelBuilder metrics**");
             Console.WriteLine($"Loss Function            : {metrics.LossFunction}");
             Console.WriteLine($"R Squared                : {metrics.RSquared}");
             Console.WriteLine($"Mean Absolute Error      : {metrics.MeanAbsoluteError}");
@@ -69,14 +71,15 @@ namespace DataDuelPredictions
 
         }
 
-        private static float MakePrediction(MLContext mlContext, ITransformer model, Match match)
+        public int PredictionMatchScore(ITransformer trainedModel, Match match)
         {
             var predictionFunction =
-                mlContext.Model.CreatePredictionEngine<Match, FullTimeScore>(model);
+                mlContext.Model.CreatePredictionEngine<Match, FullTimeScore>(trainedModel);
 
             var prediction = predictionFunction.Predict(match);
 
-            return prediction.FullTimeGoals;
+            // Aggressive rounding to avoid predicting every score with 0's and 1's
+            return (int) Math.Floor(prediction.FullTimeGoals + (double) 0.6m);
         }
 
         private static string GetAbsolutePath(string relativePath)
