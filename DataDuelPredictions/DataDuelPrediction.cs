@@ -1,7 +1,7 @@
 
 namespace DataDuelPredictions
 {
-    public class ScorePrediction
+    public class DataDuelPrediction
     {
         public int fixtureId { get; set; }
         public PredictedScore score { get; set; }
