@@ -2,6 +2,10 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Trainers;
+using Microsoft.ML.FastTree;
+using Microsoft.ML.Trainers.FastTree;
 
 namespace DataDuelPredictions
 {
@@ -38,6 +42,12 @@ namespace DataDuelPredictions
 
         private ITransformer Train(IDataView trainData)
         {
+            var options = new FastForestRegressionTrainer.Options()
+            {
+                NumberOfTrees = 500,
+                MinimumExampleCountPerLeaf = 100
+            };
+
             // Data process configuration with pipeline data transformations
             var trainingPipeline = mlContext.Transforms
                 .CopyColumns("Label", nameof(Match.FullTimeGoals))
@@ -49,7 +59,7 @@ namespace DataDuelPredictions
                     "IsHomeEncoded", nameof(Match.IsHome)))
                 .Append(mlContext.Transforms.Concatenate(
                     "Features", "IsHomeEncoded", "TeamEncoded", "OpponentEncoded"))
-                .Append(mlContext.Regression.Trainers.LbfgsPoissonRegression());
+                .Append(mlContext.Regression.Trainers.FastForest(options));
 
             var model = trainingPipeline.Fit(trainData);
 

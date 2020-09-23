@@ -27,9 +27,9 @@ namespace DataDuelPredictions
         public static async Task<IList<DataDuelMatch>> GetFixtures(int? matchday)
         {
             var endpoint = SeasonFixturesEndpoint;
-            if (matchday != null) 
+            if (matchday != null)
                 endpoint = $"/api/season/{Season}/matchday/{matchday}/fixture";
-            
+
             var request = WebRequest.Create($"{BaseUrl}{endpoint}");
 
             using var response = (HttpWebResponse) await request.GetResponseAsync();
