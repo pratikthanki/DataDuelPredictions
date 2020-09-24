@@ -26,7 +26,7 @@ namespace DataDuelPredictions
                             MatchDate = match.date,
                             Team = match.homeTeam.name,
                             Opponent = match.awayTeam.name,
-                            FullTimeGoals = (float) 0,
+                            FullTimeGoals = 0.0f,
                             IsHome = (float) 1
                         },
                         new Match
@@ -35,7 +35,7 @@ namespace DataDuelPredictions
                             MatchDate = match.date,
                             Team = match.awayTeam.name,
                             Opponent = match.homeTeam.name,
-                            FullTimeGoals = (float) 0,
+                            FullTimeGoals = 0.0f,
                             IsHome = (float) 0
                         }
                     }
@@ -54,8 +54,8 @@ namespace DataDuelPredictions
 
             foreach (var match in matches)
             {
-                var homeTeam = match.First(x => x.IsHome == (float) 1);
-                var awayTeam = match.First(x => x.IsHome == (float) 0);
+                var homeTeam = match.First(x => Math.Abs(x.IsHome - 1.0f) == 0);
+                var awayTeam = match.First(x => x.IsHome == 0.0f);
 
                 Debug.Assert(homeTeam.FixtureId == awayTeam.FixtureId);
 
@@ -64,8 +64,8 @@ namespace DataDuelPredictions
                     fixtureId = homeTeam.FixtureId,
                     score = new PredictedScore
                     {
-                        homeGoals = modelBuilder.PredictionMatchScore(trainedModel, homeTeam),
-                        awayGoals = modelBuilder.PredictionMatchScore(trainedModel, awayTeam)
+                        homeGoals = ModelBuilder.PredictMatchScore(trainedModel, homeTeam),
+                        awayGoals = ModelBuilder.PredictMatchScore(trainedModel, awayTeam)
                     }
                 };
 

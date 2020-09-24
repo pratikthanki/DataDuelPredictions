@@ -9,7 +9,7 @@ namespace DataDuelPredictions
         public DateTime MatchDate;
         public string Team;
         public string Opponent;
-        public float FullTimeGoals;
+        [ColumnName("Label")] public float FullTimeGoals;
         public float IsHome;
     }
 
